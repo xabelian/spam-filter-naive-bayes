@@ -95,7 +95,7 @@ def word_ocurrs_by_document(document):
    word_counts = Counter(document)
    return word_counts
 
-def train_naive_bayes(df, classes, alpha=0.01, save_csv = False):
+def train_naive_bayes(df, classes, alpha=0.01, show_steps=False):
   """
   This is a general function that trains a Naive Bayes classifier
     given a dataframe, a list of classes and a smoothing parameter alpha.
@@ -116,19 +116,21 @@ def train_naive_bayes(df, classes, alpha=0.01, save_csv = False):
 
   document = get_document_text(df)
   vocabulary = get_vocabulary(document)
-
   for c in classes:
     Ndoc = df.shape[0]
     Nc = (df['tag'] == c).sum()
     logprior[c]= log(Nc/Ndoc)
     bigdoc[c] = get_document_text(df, class_name=c)
-    total_word_count_class = sum_word_counts(bigdoc[c])
     word_occur_class = word_ocurrs_by_document(bigdoc[c])
+    total_word_count_class = sum_word_counts(bigdoc[c])
     for word in vocabulary:
       count_w_c = word_occur_class[word]
       loglikelihood[(word, c)] = log((count_w_c+alpha)/(total_word_count_class))
-  
+      if show_steps:
+          print("P({} | {}) = {}".format(word, c, loglikelihood[(word, c)]))
+
   return logprior, loglikelihood, vocabulary
+
 
 def predict_class(testdoc, logprior, likelihood, classes, vocabulary):
     """
