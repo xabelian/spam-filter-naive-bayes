@@ -1,5 +1,4 @@
 from math import log 
-import csv
 import nltk   
 from nltk.tokenize import word_tokenize   
 from collections import Counter 
@@ -60,7 +59,7 @@ def get_document_text(df, column="message", class_name=None):
 def get_vocabulary(document):
 
     """
-    Given a document (that is a string), it returns a set with
+    Given a document (string), it returns a set with
     its vocabulary.
     """
     try:
@@ -76,9 +75,9 @@ def get_vocabulary(document):
 
     return vocabulary
 
-def sum_word_counts(words, document, alpha=0.01):
+def sum_word_counts(document, alpha=0.01):
     """
-
+    Used to calculate the total number of words in a class document
     """
     document = nltk.word_tokenize(document)
     wordcounts = Counter(document)
@@ -89,15 +88,27 @@ def sum_word_counts(words, document, alpha=0.01):
     return total_count
 
 def word_ocurrs_by_document(document):
+   """
+   Returns a dictionary with the number of times a word occurs in a document
+   """
    document = nltk.word_tokenize(document)
    word_counts = Counter(document)
    return word_counts
 
 def train_naive_bayes(df, classes, alpha=0.01, save_csv = False):
   """
-  This should return a log P(c) and log P(w|c).
-  We have to take the dataframe to count "documents", that is rows that are
-  either spam or ham
+  This is a general function that trains a Naive Bayes classifier
+    given a dataframe, a list of classes and a smoothing parameter alpha.
+
+    Parameters
+    ----------
+    df : Panda's Dataframe
+        The dataframe we will extract data from
+    classes : list
+        The list of classes, in the case of a spam filter, it could be
+        ["spam", "ham"]
+    alpha : float
+        The smoothing parameter by default it's 0.01
   """
   logprior = {}
   bigdoc = {}
@@ -105,14 +116,13 @@ def train_naive_bayes(df, classes, alpha=0.01, save_csv = False):
 
   document = get_document_text(df)
   vocabulary = get_vocabulary(document)
-  total_word_count_class = sum_word_counts(vocabulary, document)
 
   for c in classes:
     Ndoc = df.shape[0]
     Nc = (df['tag'] == c).sum()
     logprior[c]= log(Nc/Ndoc)
     bigdoc[c] = get_document_text(df, class_name=c)
-    total_word_count_class = sum_word_counts(vocabulary, bigdoc[c])
+    total_word_count_class = sum_word_counts(bigdoc[c])
     word_occur_class = word_ocurrs_by_document(bigdoc[c])
     for word in vocabulary:
       count_w_c = word_occur_class[word]
@@ -120,18 +130,25 @@ def train_naive_bayes(df, classes, alpha=0.01, save_csv = False):
   
   return logprior, loglikelihood, vocabulary
 
-def test_naive_bayes(testdoc, logprior, likelihood, classes, vocabulary):
-  sum = {}
-  testdoc = word_tokenize(testdoc)
-  for c in classes:
-    sum[c] = logprior[c]
-    for word in testdoc:
-      if word in vocabulary:
-        sum[c] += likelihood[(word, c)]
-  argmax_class = max(sum, key=sum.get)
-  return argmax_class, sum[c]
-
 def predict_class(testdoc, logprior, likelihood, classes, vocabulary):
+    """
+    This function predicts the class of a given document or string.
+
+    Parameters
+    ----------
+    testdoc : str
+        The document we want to predict the class for.
+    logprior : dict
+        The logprior dictionary containing the logprior of each class
+    likelihood : dict
+        The likelihood dictionary containing the likelihood of each word, class pair
+    classes : list
+        The list of classes, in the case of a spam filter, it could be
+        ["spam", "ham"]
+    vocabulary : list
+        The vocabulary list    
+    """
+
     sum_values = {}
     testdoc = word_tokenize(testdoc)
 
@@ -145,6 +162,11 @@ def predict_class(testdoc, logprior, likelihood, classes, vocabulary):
     return argmax_class
 
 def confusion_matrix(actual_classes, predicted_classes, labels):
+    """
+    Given a list of actual classes and predicted classes, this function
+    returns a confusion matrix as a pandas DataFrame.
+
+    """
     num_classes = len(labels)
     matrix = np.zeros((num_classes, num_classes), dtype=int)
 
@@ -169,10 +191,19 @@ def get_accuracy(confusion_df):
     return accuracy
 
 def get_precision(confusion_df):
-    
+
     tp = confusion_df.iloc[0,0]
     fp = confusion_df.iloc[0,1]
     fn = confusion_df.iloc[1,0]
     tn = confusion_df.iloc[1,1]
     precision = tp/(tp+fp)
     return precision
+
+def get_recall(confusion_df):
+
+    tp = confusion_df.iloc[0,0]
+    fp = confusion_df.iloc[0,1]
+    fn = confusion_df.iloc[1,0]
+    tn = confusion_df.iloc[1,1]
+    recall = tp/(tp+fn)
+    return recall   
