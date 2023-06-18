@@ -4,6 +4,7 @@ from nltk.tokenize import word_tokenize
 from collections import Counter 
 import numpy as np
 import pandas as pd
+from utils import print_progress_bar
 
 """
 This Naive Bayes Classifier is based on pseudocode described
@@ -75,7 +76,7 @@ def get_vocabulary(document):
 
     return vocabulary
 
-def sum_word_counts(document, alpha=0.01):
+def sum_word_counts(document, alpha=1):
     """
     Used to calculate the total number of words in a class document
     """
@@ -95,9 +96,29 @@ def word_ocurrs_by_document(document):
    word_counts = Counter(document)
    return word_counts
 
-def train_naive_bayes(df, classes, alpha=0.01, show_steps=False):
-  """
-  This is a general function that trains a Naive Bayes classifier
+
+def remove_stop_words(word_counts, n):
+    """
+    Removes the top n most frequent words from the word_counts dictionary.
+
+    Parameters
+    ----------
+    word_counts : dict
+        Dictionary containing words as keys and their respective counts as values.
+    n : int
+        Number of words to remove.
+    """
+    sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+    top_words = [word for word, count in sorted_words[:n]]
+
+    for word in top_words:
+        del word_counts[word]
+
+    return word_counts
+
+def train_naive_bayes(df, classes, alpha=1):
+    """
+    This is a general function that trains a Naive Bayes classifier
     given a dataframe, a list of classes and a smoothing parameter alpha.
 
     Parameters
@@ -108,29 +129,34 @@ def train_naive_bayes(df, classes, alpha=0.01, show_steps=False):
         The list of classes, in the case of a spam filter, it could be
         ["spam", "ham"]
     alpha : float
-        The smoothing parameter by default it's 0.01
-  """
-  logprior = {}
-  bigdoc = {}
-  loglikelihood = {}
+        The smoothing parameter, by default it's 1
+    """
+    logprior = {}
+    bigdoc = {}
+    loglikelihood = {}
 
-  document = get_document_text(df)
-  vocabulary = get_vocabulary(document)
-  for c in classes:
+    document = get_document_text(df)
+    vocabulary = get_vocabulary(document)
+    total_iterations = len(classes) * len(vocabulary)
+    current_iteration = 0
     Ndoc = df.shape[0]
-    Nc = (df['tag'] == c).sum()
-    logprior[c]= log(Nc/Ndoc)
-    bigdoc[c] = get_document_text(df, class_name=c)
-    word_occur_class = word_ocurrs_by_document(bigdoc[c])
-    total_word_count_class = sum_word_counts(bigdoc[c])
-    for word in vocabulary:
-      count_w_c = word_occur_class[word]
-      loglikelihood[(word, c)] = log((count_w_c+alpha)/(total_word_count_class))
-      if show_steps:
-          print("P({} | {}) = {}".format(word, c, loglikelihood[(word, c)]))
+    for c in classes:  
+        Nc = (df['tag'] == c).sum()
+        logprior[c] = log(Nc / Ndoc)
+        bigdoc[c] = get_document_text(df, class_name=c)
+        word_occur_class = word_ocurrs_by_document(bigdoc[c])
+        total_word_count_class = sum_word_counts(bigdoc[c])
+        
+        for word in vocabulary:
+            count_w_c = word_occur_class[word]
+            loglikelihood[(word, c)] = log((count_w_c + alpha) / (total_word_count_class))
 
-  return logprior, loglikelihood, vocabulary
+            current_iteration += 1
+            print_progress_bar(current_iteration, total_iterations, prefix='Progress:', suffix='Complete', length=50)
 
+    print("Naive Bayes Classifier training completed.")
+
+    return logprior, loglikelihood, vocabulary
 
 def predict_class(testdoc, logprior, likelihood, classes, vocabulary):
     """
@@ -147,8 +173,8 @@ def predict_class(testdoc, logprior, likelihood, classes, vocabulary):
     classes : list
         The list of classes, in the case of a spam filter, it could be
         ["spam", "ham"]
-    vocabulary : list
-        The vocabulary list    
+    vocabulary : set
+        The vocabulary set    
     """
 
     sum_values = {}
