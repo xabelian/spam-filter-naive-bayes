@@ -1,0 +1,7 @@
+Confusion Matrix:
+      spam  ham
+spam    40    1
+ham      2   78
+Precision: 0.975609756097561
+Accuracy: 0.9752066115702479
+Recall: 0.9523809523809523

@@ -43,8 +43,6 @@ def export_confusion_matrix(data_path='./data/spamEmailDataset.csv'):
     samples_csv = samples_csv.sample(frac=1, random_state=42)
     document_df = samples_csv
 
-    # Split and train model
-
     train_df, test_df = nb.split_train_test(document_df, train_percent=0.8)
 
     classes = ["spam", "ham"] 
